@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="TSP-Serial.cpp">
+    <ClCompile Include="MultMatrix-Parallel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

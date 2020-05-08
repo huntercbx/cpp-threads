@@ -6,6 +6,8 @@
 #include <set>
 #include <algorithm>
 #include <chrono>
+#include <thread>
+#include <mutex>
 
 using namespace std::chrono;
 
@@ -30,6 +32,7 @@ const int distance_map[15][15] =
  {46, 21, 51, 64, 23, 59, 33, 37, 11, 37, 61, 55, 23, 59,  0} };
 
 
+std::mutex best_solution_mutex;
 std::vector<size_t> best_solution_found;
 int best_estimation = 0;
 
@@ -69,8 +72,12 @@ void walk_route(const std::vector<size_t>& partial_route, size_t len)
 		// если текущая оценка лучше, то найдено более оптимальное решение
 		if (estimation < best_estimation)
 		{
-			best_estimation = estimation;
-			best_solution_found = partial_route;
+			std::lock_guard<std::mutex> guard(best_solution_mutex);
+			if (estimation < best_estimation)
+			{
+				best_estimation = estimation;
+				best_solution_found = partial_route;
+			}
 		}
 		return;
 	}
@@ -82,13 +89,21 @@ void walk_route(const std::vector<size_t>& partial_route, size_t len)
 	for (size_t i = 0; i < len; ++i)
 		unvisited_cities.erase(partial_route[i]);
 
-	// ветвление по новым маршрутам
+	// ветвление по новым маршрутам - создаем потоки
+	std::vector<std::thread> threads;
 	for (const auto& city : unvisited_cities)
 	{
 		auto new_route = partial_route;
 		new_route[len] = city;
-		walk_route(new_route, len + 1);
+		if (len <= 3)
+			threads.emplace_back(walk_route, new_route, len + 1);
+		else
+			walk_route(new_route, len + 1);
 	}
+
+	// ждем завершения потоков
+	for (auto& th : threads)
+		th.join();
 }
 
 int main(int argc, char* argv[])
@@ -111,7 +126,6 @@ int main(int argc, char* argv[])
 	route[0] = 0;
 	walk_route(route, 1);
 
-	// время окончания рассчетов
 	// время окончания рассчетов
 	auto stop = high_resolution_clock::now();
 	auto duration = duration_cast<milliseconds>(stop - start).count();
